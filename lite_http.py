@@ -1,12 +1,16 @@
-import socket, threading
+import socket, threading, os
 
 log = print
 
 STATIC_DIR = 'static'
+PAGE_404 = '404.html'
+PAGE_POST_NOT_SUPPORT = 'post_not_support.html'
 REQUEST_MAX_LENGTH = 1024 * 1024
 
 HEADER_CONTENT_TYPE = ('Content-Type', 'text/html; charset=UTF-8')
 RESPONSE_FIRST_VERSION = 'HTTP-Version: HTTP/1.0'
+
+static_list = []
 
 
 class Request():
@@ -48,40 +52,79 @@ class Request():
 
 
 class Response():
-    __slots__ = ['status', 'headers', 'body', 'message']
+    """
+    Http Response. Note: The body's type is bytes
+    """
 
-    def __init__(self):
-        self.headers = dict()
+    def __init__(self, status=200, headers={}, body=None, message='ok'):
+        self.status = status
+        self.headers = headers
+        self.body = body
+        self.message = message
 
     @classmethod
-    def ok(cls, body):
-        res = Response()
-        res.status = 200
-        res.message = 'ok'
+    def ok(cls, body=None):
+        res = Response(body=body)
         res.body = body
         if body:
             res.headers['Content-Length'] = str(len(body))
-        # res.headers
         return res
+
+    @classmethod
+    def not_found(cls):
+        return Response(status=404, message='Not Found')
+
+    @classmethod
+    def bad_request(cls):
+        return Response(status=400, message='Bad Request')
 
     def source_view(self):
         """
         将Response转换为Source模式, Type is Bytes
-        :return:
         """
-        source = str()
+        header_of_response = str()
         signature = ' '.join([RESPONSE_FIRST_VERSION, str(self.status), self.message])
         headers_str = str()
 
         for title, content in self.headers.items():
             headers_str += ': '.join([title, content])
             headers_str += '\r\n'
+        headers_str = headers_str[:-2]  # 去除最后多的一个 '\r\n'
         body = self.body
-        source += '\r\n'.join([signature, headers_str])
+        header_of_response += '\r\n'.join([signature, headers_str])
+        response = bytes(header_of_response + '\r\n\r\n', encoding='utf-8')
         if body:
-            source += '\r\n\r\n'
-            source += body
-        return bytes(source, encoding='utf-8')
+            response += body
+        return response
+
+
+def file_as_body(page):
+    file = open(os.path.join(STATIC_DIR, page), 'rb')
+    body = file.read()
+    file.close()
+    return body
+
+
+def handle_get_request(request):
+    path = request.path
+    if path == '/':
+        return Response.ok(body=file_as_body('index.html'))
+    global static_list
+    if not static_list:
+        static_list = os.listdir(STATIC_DIR)
+    if path[1:] in static_list:
+        return Response.ok(body=file_as_body(path[1:]))
+    else:
+        return Response.ok(body=file_as_body(PAGE_404))
+
+
+def handle_post_request():
+    try:
+        page = open(os.path.join(STATIC_DIR, PAGE_POST_NOT_SUPPORT), 'rb')
+        body = page.read()
+        return Response(405, body=body, message='Method Not Allowed')
+    except FileNotFoundError as e:
+        return Response.bad_request()
 
 
 def handle_request(request: Request):
@@ -89,31 +132,19 @@ def handle_request(request: Request):
     handle request and return Response
     """
     if request.method.lower() == 'get':
-        return Response.ok(body="""<!DOCTYPE HTML>
-                        <html>
-                            <head>
-                                <meta charset="utf-8"/>
-                                <title>Python Web server</title>
-                            </head>
-                        <body>
-                            <h1>Hello World</h1>
-                        </body>
-                        </html>""")
+        return handle_get_request(request)
+    if request.method.lower() == 'post':
+        return handle_post_request()
 
 
 def accept_socket(sock: socket, addr):
     ori_request = sock.recv(REQUEST_MAX_LENGTH)
     request = Request(ori_request.decode('utf-8'), addr)
     log("Accept new http request: %s" % request.signature)
-    log("Send http response: %s" % request.signature)
     response_byte = handle_request(request).source_view()
-    log(response_byte)
+    log('Send http response:', response_byte)
     sock.send(response_byte)
     sock.close()
-
-
-def bad_request():
-    pass
 
 
 def start(host, port):
@@ -127,13 +158,5 @@ def start(host, port):
         threading.Thread(target=accept_socket, args=(sock, addr)).start()
 
 
-def headers(header: dict):
-    pass
-
-
-def not_found():
-    pass
-
-
-start("0.0.0.0", 8079)
-# start("0.0.0.0", 8080)
+if __name__ == '__main__':
+    start("0.0.0.0", 8080)
