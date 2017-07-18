@@ -99,9 +99,8 @@ class Response():
 
 
 def file_as_body(page):
-    file = open(os.path.join(STATIC_DIR, page), 'rb')
-    body = file.read()
-    file.close()
+    with open(os.path.join(STATIC_DIR, page), 'rb') as file:
+        body = file.read()
     return body
 
 
@@ -120,8 +119,7 @@ def handle_get_request(request):
 
 def handle_post_request():
     try:
-        page = open(os.path.join(STATIC_DIR, PAGE_POST_NOT_SUPPORT), 'rb')
-        body = page.read()
+        body = file_as_body(PAGE_POST_NOT_SUPPORT)
         return Response(405, body=body, message='Method Not Allowed')
     except FileNotFoundError as e:
         return Response.bad_request()
