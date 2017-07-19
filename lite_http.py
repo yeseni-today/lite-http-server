@@ -98,7 +98,7 @@ class Response():
         return response
 
 
-def file_as_body(page):
+def file(page):
     with open(os.path.join(STATIC_DIR, page), 'rb') as file:
         body = file.read()
     return body
@@ -107,19 +107,19 @@ def file_as_body(page):
 def handle_get_request(request):
     path = request.path
     if path == '/':
-        return Response.ok(body=file_as_body('index.html'))
+        return Response.ok(body=file('index.html'))
     global static_list
     if not static_list:
         static_list = os.listdir(STATIC_DIR)
     if path[1:] in static_list:
-        return Response.ok(body=file_as_body(path[1:]))
+        return Response.ok(body=file(path[1:]))
     else:
-        return Response.ok(body=file_as_body(PAGE_404))
+        return Response.ok(body=file(PAGE_404))
 
 
 def handle_post_request():
     try:
-        body = file_as_body(PAGE_POST_NOT_SUPPORT)
+        body = file(PAGE_POST_NOT_SUPPORT)
         return Response(405, body=body, message='Method Not Allowed')
     except FileNotFoundError as e:
         return Response.bad_request()
