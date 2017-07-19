@@ -1,5 +1,9 @@
 import socket, threading, os
 
+"""
+A simple lite static web server based Python with **less 200 line**  
+"""
+
 log = print
 
 STATIC_DIR = 'static'
@@ -95,13 +99,16 @@ class Response():
         return response
 
 
-def file(page):
+def file(page) -> bytes:
+    """
+    Open file and return it's content(type:bytes)
+    """
     with open(os.path.join(STATIC_DIR, page), 'rb') as file:
         body = file.read()
     return body
 
 
-def handle_get_request(request):
+def handle_get_request(request) -> Response:
     path = request.path
     if path == '/':
         return Response.ok(body=file('index.html'))
@@ -114,7 +121,7 @@ def handle_get_request(request):
         return Response.ok(body=file(PAGE_404))
 
 
-def handle_post_request():
+def handle_post_request() -> Response:
     try:
         body = file(PAGE_POST_NOT_SUPPORT)
         return Response(405, body=body, message='Method Not Allowed')
@@ -122,10 +129,7 @@ def handle_post_request():
         return Response.bad_request()
 
 
-def handle_request(request: Request):
-    """
-    handle request and return Response
-    """
+def handle_request(request: Request) -> Response:
     if request.method.lower() == 'get':
         return handle_get_request(request)
     if request.method.lower() == 'post':
@@ -134,6 +138,7 @@ def handle_request(request: Request):
 
 def accept_socket(sock: socket, addr):
     ori_request = sock.recv(REQUEST_MAX_LENGTH)
+    # parse original request to the special format for human
     request = Request(ori_request.decode('utf-8'), addr)
     log("Accept new http request: %s" % request.signature)
     response_byte = handle_request(request).source_view()
@@ -143,6 +148,8 @@ def accept_socket(sock: socket, addr):
 
 
 def start(host, port):
+    """start web server, it will run forever
+    """
     global _main
     _main = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     _main.bind((host, port))
