@@ -23,6 +23,7 @@ class Request():
         self.orignal_request = orign_request
 
         self.host, self.port = addr
+
         self.__parse_request__(orign_request)
 
     def __parse_request__(self, request):
@@ -42,12 +43,8 @@ class Request():
                 continue
             item = lines[header].split(":", 2)
             self.headers[item[0]] = item[1].strip()
-        self.__parse_method_and_path__()
 
-    def __parse_method_and_path__(self):
-        """
-        parse like 'GET / HTTP/1.1'
-        """
+        # parse like 'GET / HTTP/1.1'
         self.method, self.path, *other = self.signature.split(' ')
 
 
