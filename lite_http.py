@@ -8,7 +8,7 @@ log = print
 
 STATIC_DIR = 'static'
 PAGE_404 = '404.html'
-PAGE_POST_NOT_SUPPORT = 'post_not_support.html'
+PAGE_METHOD_NOT_SUPPORT = 'method_not_support.html'
 REQUEST_MAX_LENGTH = 1024 * 1024
 
 HEADER_CONTENT_TYPE = ('Content-Type', 'text/html; charset=UTF-8')
@@ -121,10 +121,10 @@ def handle_get_request(request) -> Response:
         return Response.ok(body=file(PAGE_404))
 
 
-def handle_post_request() -> Response:
+def method_not_support(method) -> Response:
     try:
-        body = file(PAGE_POST_NOT_SUPPORT)
-        return Response(405, body=body, message='Method Not Allowed')
+        body = file(PAGE_METHOD_NOT_SUPPORT)
+        return Response(405, body=body, message='Method %s Not Allowed' % method)
     except FileNotFoundError as e:
         return Response.bad_request()
 
@@ -132,8 +132,19 @@ def handle_post_request() -> Response:
 def handle_request(request: Request) -> Response:
     if request.method.lower() == 'get':
         return handle_get_request(request)
-    if request.method.lower() == 'post':
-        return handle_post_request()
+    if request.method.lower() == 'options':
+        return Response().ok()
+    return method_not_support(request.method.lower())
+
+
+def after_handle_response(response):
+    # handle cross request
+    # 处理跨域请求 可以用于测试
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers[
+        "Access-Control-Allow-Headers"] = ("Content-Type,Content-Length, "
+                                           "Authorization, Accept,X-Requested-With")
+    response.headers["Access-Control-Allow-Methods"] = "PUT,POST,GET,DELETE,OPTIONS"
 
 
 def accept_socket(sock: socket, addr):
@@ -141,9 +152,14 @@ def accept_socket(sock: socket, addr):
     # parse original request to the special format for human
     request = Request(ori_request.decode('utf-8'), addr)
     log("Accept new http request: %s" % request.signature)
-    response_byte = handle_request(request).source_view()
-    log('Send http response:', response_byte)
-    sock.send(response_byte)
+    log("   original http request:\n", ori_request)
+
+    response = handle_request(request)
+    after_handle_response(response)
+    response_bytes = response.source_view()
+
+    log('Send http response:', response_bytes)
+    sock.send(response_bytes)
     sock.close()
 
 

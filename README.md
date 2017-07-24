@@ -1,4 +1,7 @@
 # Lite Http Server
+
+Welcome Lite Python Server. 
+
 A simple lite static web server based Python with **less 200 line**  
 
 She only has some features but support basic static file web server.  
